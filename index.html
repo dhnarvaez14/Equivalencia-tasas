@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Equivalencia de Tasas</title>
+<meta name="description" content="Conversor de tasas nominales, efectivas, vencidas y anticipadas, con procedimiento paso a paso. Herramienta de uso libre.">
+<meta name="author" content="Daniel Humberto Narvaez Gallardo">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Concepto: cuaderno de cálculo de clase. Paneles limpios sobre fondo gris azulado, cifras en monoespaciada como cinta de calculadora, un solo acento ultramar. */
+:root {
+  --bg: #EEF1F6;
+  --surface: #FFFFFF;
+  --ink: #111A2E;
+  --muted: #56627A;
+  --line: #D5DBE6;
+  --accent: #2B3FD0;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E3E7FB;
+  --ok: #0E7A4B;
+  --err: #B42318;
+  --err-soft: #FDECEA;
+  --display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1220; --surface: #151C30; --ink: #E8ECF7; --muted: #9AA6C2; --line: #28324D;
+    --accent: #8C9BFF; --accent-ink: #0D1220; --accent-soft: #1E2750; --ok: #4ADE9B; --err: #FF8A7A; --err-soft: #3A1E22;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1220; --surface: #151C30; --ink: #E8ECF7; --muted: #9AA6C2; --line: #28324D;
+  --accent: #8C9BFF; --accent-ink: #0D1220; --accent-soft: #1E2750; --ok: #4ADE9B; --err: #FF8A7A; --err-soft: #3A1E22;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 20px; }
+header h1 { font-family: var(--display); font-weight: 700; font-size: clamp(28px, 5vw, 40px); line-height: 1.05; margin: 0 0 6px; letter-spacing: -0.02em; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs button { font: 500 15px var(--body); color: var(--muted); background: none; border: 0; padding: 10px 16px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabs button:hover { color: var(--ink); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+section[role="tabpanel"] { display: grid; gap: 20px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chips .lead { color: var(--muted); font-size: 13px; margin-right: 4px; }
+.chip { font: 500 13px var(--mono); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.panel h2 { font-family: var(--display); font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+.panel h2 small { font: 500 12px var(--mono); color: var(--accent); margin-left: 8px; letter-spacing: 0.02em; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.lab { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.seg span { display: block; text-align: center; padding: 9px 8px; font-weight: 500; color: var(--muted); border-right: 1px solid var(--line); }
+.seg label:last-child span { border-right: 0; }
+.seg input:checked + span { background: var(--accent); color: var(--accent-ink); }
+.seg input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: -3px; }
+select, input[type="text"] { font: 500 16px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; min-width: 0; }
+input.num { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+.valrow { position: relative; }
+.valrow .suf { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font: 500 18px var(--mono); color: var(--muted); pointer-events: none; }
+.valrow input { padding-right: 36px; }
+.out { font-family: var(--mono); font-size: clamp(32px, 6vw, 46px); font-weight: 600; line-height: 1.1; color: var(--accent); word-break: break-word; }
+.out small { font-size: 0.5em; font-weight: 500; color: var(--muted); }
+.out.bad { font-size: 15px; color: var(--err); font-family: var(--body); font-weight: 500; }
+.desc { color: var(--muted); font-size: 14px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.card h2 { font-family: var(--display); font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: s; }
+.steps li { display: grid; gap: 6px; padding-left: 38px; position: relative; counter-increment: s; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 600 13px var(--mono); display: grid; place-items: center; }
+.steps .t { font-weight: 500; }
+.steps code { font: 500 14px var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; display: block; }
+.steps li.final code { border-color: var(--accent); color: var(--accent); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; min-width: 560px; }
+th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+tbody td { font-family: var(--mono); font-size: 14px; }
+tbody td:first-child { font-family: var(--body); font-weight: 500; }
+tbody tr:last-child td { border-bottom: 0; }
+td.hit { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.verify { display: grid; gap: 10px; }
+.verify .row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.verify .row:last-child { border-bottom: 0; }
+.verify .v { font-family: var(--mono); font-weight: 500; }
+.verify .ok { color: var(--ok); font-weight: 600; font-family: var(--body); }
+.cap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cap input { max-width: 200px; font-family: var(--mono); }
+
+.btn { font: 500 14px var(--body); background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; justify-self: start; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+/* comparador */
+.cmprow { display: grid; grid-template-columns: 1.1fr 1.2fr 1.2fr 0.9fr; gap: 14px; align-items: end; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.cmprow:first-of-type { padding-top: 0; }
+.cmprow:last-of-type { border-bottom: 0; padding-bottom: 0; }
+.cmprow .tag { grid-column: 1 / -1; font: 500 12px var(--mono); color: var(--accent); }
+.bars { display: grid; gap: 12px; }
+.bar { display: grid; gap: 4px; }
+.bar .head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-family: var(--mono); font-size: 14px; }
+.bar .track { height: 12px; background: var(--bg); border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.bar .fill { height: 100%; background: var(--muted); opacity: 0.5; }
+.bar.best .fill { background: var(--accent); opacity: 1; }
+.bar.best .head { color: var(--accent); font-weight: 600; }
+.verdict { background: var(--accent-soft); border-radius: 8px; padding: 14px 16px; font-weight: 500; }
+
+.refgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.ref { display: grid; gap: 8px; }
+.ref h3 { margin: 0; font: 600 15px var(--display); }
+.ref code { font: 500 14px var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; display: block; overflow-x: auto; white-space: nowrap; }
+.ref p { margin: 0; color: var(--muted); font-size: 14px; }
+.warn { border-left: 4px solid var(--accent); padding: 4px 0 4px 14px; margin: 0; font-weight: 500; }
+
+.credits { border-top: 1px solid var(--line); padding-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.credits h2 { font: 600 12px var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.credits p { margin: 0; }
+.credits .author { font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+.credits .role { color: var(--muted); font-size: 14px; }
+.credits .free { font-size: 14px; }
+@media (max-width: 760px) { .credits { grid-template-columns: 1fr; gap: 16px; } }
+@media (max-width: 760px) {
+  .pair { grid-template-columns: 1fr; }
+  .cmprow { grid-template-columns: 1fr 1fr; }
+  .panel, .card { padding: 16px; }
+}
+@media (max-width: 520px) {
+  .cmprow { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Equivalencia de Tasas</h1>
+    <p>Convierte tasas nominales, efectivas, vencidas y anticipadas, y mira el procedimiento paso a paso.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Secciones">
+    <button role="tab" id="tb-conv" aria-selected="true" aria-controls="tab-conv">Conversor</button>
+    <button role="tab" id="tb-cmp" aria-selected="false" aria-controls="tab-cmp">Comparar tasas</button>
+    <button role="tab" id="tb-ref" aria-selected="false" aria-controls="tab-ref">Fórmulas</button>
+  </div>
+
+  <section role="tabpanel" id="tab-conv" aria-labelledby="tb-conv">
+    <div class="chips" id="examples"></div>
+    <div class="pair">
+      <div class="panel" id="p-src">
+        <h2>Tasa de partida <small id="src-tag"></small></h2>
+        <div id="src-form"></div>
+      </div>
+      <div class="panel" id="p-dst">
+        <h2>Tasa buscada <small id="dst-tag"></small></h2>
+        <div id="dst-form"></div>
+        <div>
+          <div class="lab">Resultado</div>
+          <div class="out" id="result" aria-live="polite"></div>
+          <div class="desc" id="result-desc"></div>
+        </div>
+        <button class="btn ghost" id="copy" type="button">Copiar resultado</button>
+      </div>
+    </div>
+    <div class="card" id="steps-card">
+      <h2>Procedimiento</h2>
+      <ol class="steps" id="steps"></ol>
+      <p class="desc" style="margin:0">La tasa efectiva anual sirve de puente: toda conversión se hace llevando la tasa de partida a E.A. y luego a la tasa buscada.</p>
+    </div>
+    <div class="card">
+      <h2>Todas las tasas equivalentes</h2>
+      <div class="tablewrap"><table id="eqtable"></table></div>
+    </div>
+    <div class="card verify">
+      <h2>Comprobación a un año</h2>
+      <div class="cap"><label class="lab" for="cap">Capital</label><input id="cap" type="text" inputmode="numeric" value="1.000.000"></div>
+      <div id="verify"></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="tab-cmp" aria-labelledby="tb-cmp" hidden>
+    <div class="card">
+      <h2>Compara varias tasas en E.A.</h2>
+      <p class="desc" style="margin:0">Dos tasas con distinta periodicidad solo se comparan al llevarlas a la misma base. Completa dos o tres.</p>
+      <div class="field" style="max-width:420px">
+        <span class="lab">Quién decide</span>
+        <div class="seg">
+          <label><input type="radio" name="goal" value="debt" checked><span>Deudor (menor es mejor)</span></label>
+          <label><input type="radio" name="goal" value="inv"><span>Inversionista (mayor es mejor)</span></label>
+        </div>
+      </div>
+      <div id="cmp-forms"></div>
+    </div>
+    <div class="card">
+      <h2>Resultado</h2>
+      <div class="bars" id="cmp-bars"></div>
+      <div class="verdict" id="cmp-verdict" hidden></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="tab-ref" aria-labelledby="tb-ref" hidden>
+    <div class="card">
+      <h2>Qué significa que dos tasas sean equivalentes</h2>
+      <p class="warn">Dos tasas son equivalentes si, con el mismo capital y el mismo plazo, producen el mismo valor futuro.</p>
+      <div class="ref"><code>(1 + i₁)^n₁ = (1 + i₂)^n₂</code><p>n₁ y n₂ son los periodos de cada tasa dentro de un mismo año. La equivalencia se obtiene potenciando; la tasa nominal es la única que se divide entre m.</p></div>
+    </div>
+    <div class="refgrid">
+      <div class="card ref"><h3>Nominal → Efectiva</h3><code>i = j / m</code><code>E.A. = (1 + i)^m − 1</code><p>Ejemplo: 24 % NMV → 2 % mensual → 26,82 % E.A.</p></div>
+      <div class="card ref"><h3>Efectiva → Nominal</h3><code>i = (1 + E.A.)^(1/m) − 1</code><code>j = i × m</code><p>Ejemplo: 30 % E.A. → 2,2104 % mensual → 26,53 % NMV.</p></div>
+      <div class="card ref"><h3>Efectiva → Efectiva</h3><code>(1 + i₁)^n₁ = (1 + i₂)^n₂</code><p>Ejemplo: 30 % E.A. → 1,30^(1/4) − 1 = 6,78 % E.T.</p></div>
+      <div class="card ref"><h3>Nominal → Nominal</h3><code>i₂ = (1 + j₁/m₁)^(m₁/m₂) − 1</code><code>j₂ = i₂ × m₂</code><p>Ejemplo: 24 % NMV → 6,1208 % trimestral → 24,48 % NTV.</p></div>
+      <div class="card ref"><h3>Anticipada ↔ Vencida</h3><code>i_v = i_a / (1 − i_a)</code><code>i_a = i_v / (1 + i_v)</code><p>Primero se pasa a vencida; luego se aplica el caso que corresponda.</p></div>
+      <div class="card ref"><h3>Notación</h3><code>NMV = Nominal Mensual Vencida</code><code>E.T.A. = Efectiva Trimestral Anticipada</code><p>m: periodos de capitalización por año (mensual 12, trimestral 4, semestral 2). La periodicidad diaria usa 365 días.</p></div>
+    </div>
+  </section>
+
+  <footer class="credits">
+    <div>
+      <h2>Creada por</h2>
+      <p class="author">Daniel Humberto Narvaez Gallardo</p>
+      <p class="role">Docente de Matemáticas Financieras</p>
+    </div>
+    <div>
+      <h2>Uso libre</h2>
+      <p class="free">Esta herramienta es de uso libre y gratuito. Puedes usarla, compartirla y emplearla en tus clases citando al autor.</p>
+    </div>
+  </footer>
+</div>
+
+<script>
+/*LOGIC*/
+const PER = [
+  { m: 1, n: 'anual', l: 'A' }, { m: 2, n: 'semestral', l: 'S' }, { m: 3, n: 'cuatrimestral', l: 'C' },
+  { m: 4, n: 'trimestral', l: 'T' }, { m: 6, n: 'bimestral', l: 'B' }, { m: 12, n: 'mensual', l: 'M' },
+  { m: 24, n: 'quincenal', l: 'Q' }, { m: 365, n: 'diaria', l: 'D' }
+];
+const perOf = m => PER.find(p => p.m === Number(m));
+const dec = (x, d) => x.toFixed(d).replace('.', ',');
+const pc = (x, d = 6) => dec(x * 100, d) + ' %';
+const fr = x => dec(x, 6);
+function label(r) {
+  const L = perOf(r.per).l;
+  return r.tipo === 'nom' ? 'N' + L + (r.mod === 'v' ? 'V' : 'A') : 'E.' + L + '.' + (r.mod === 'a' ? 'A.' : '');
+}
+function nameOf(r) {
+  return 'Tasa ' + (r.tipo === 'nom' ? 'nominal ' : 'efectiva ') + perOf(r.per).n + (r.mod === 'v' ? ' vencida' : ' anticipada');
+}
+function parseNum(s) {
+  s = String(s).trim().replace(/\s/g, '');
+  if (s === '') return NaN;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  return /^-?\d*\.?\d+$/.test(s) ? parseFloat(s) : NaN;
+}
+// pasa cualquier tasa a tasa periódica vencida y a E.A.
+function toEA(r) {
+  const x = r.val / 100, m = r.per;
+  const ip = r.tipo === 'nom' ? x / m : x;
+  if (r.mod === 'a' && ip >= 1) return { error: 'Una tasa anticipada por periodo debe ser menor que 100 %.' };
+  const iv = r.mod === 'a' ? ip / (1 - ip) : ip;
+  return { x, m, ip, iv, ea: Math.pow(1 + iv, m) - 1 };
+}
+function convert(src, dst) {
+  if (!isFinite(src.val)) return { error: 'Escribe la tasa de partida.' };
+  if (src.val < 0) return { error: 'La tasa no puede ser negativa.' };
+  const a = toEA(src);
+  if (a.error) return a;
+  const steps = [];
+  if (src.tipo === 'nom') {
+    steps.push({ t: 'Tasa periódica de partida: se divide la nominal entre m = ' + src.per, f: 'i = j / m = ' + pc(a.x) + ' / ' + src.per + ' = ' + pc(a.ip) });
+  } else {
+    steps.push({ t: 'La tasa efectiva ya es periódica: no se divide', f: 'i = ' + pc(a.ip) + '  (' + label(src) + ')' });
+  }
+  if (src.mod === 'a') {
+    steps.push({ t: 'Pasar la tasa anticipada a vencida', f: 'i_v = i_a / (1 − i_a) = ' + fr(a.ip) + ' / (1 − ' + fr(a.ip) + ') = ' + pc(a.iv) });
+  }
+  if (src.per === 1) {
+    steps.push({ t: 'Con una sola capitalización al año, la tasa vencida ya es la E.A.', f: 'E.A. = i_v = ' + pc(a.ea) });
+  } else {
+    steps.push({ t: 'Llevar la tasa vencida a efectiva anual (m = ' + src.per + ')', f: 'E.A. = (1 + i_v)^m − 1 = (1 + ' + fr(a.iv) + ')^' + src.per + ' − 1 = ' + pc(a.ea) });
+  }
+  const m2 = dst.per;
+  const iv2 = Math.pow(1 + a.ea, 1 / m2) - 1;
+  if (m2 === 1) {
+    steps.push({ t: 'La tasa buscada es anual: la tasa vencida equivalente es la E.A.', f: 'i_v = E.A. = ' + pc(iv2) });
+  } else {
+    steps.push({ t: 'Hallar la tasa periódica vencida equivalente (m = ' + m2 + ')', f: 'i_v = (1 + E.A.)^(1/m) − 1 = (1 + ' + fr(a.ea) + ')^(1/' + m2 + ') − 1 = ' + pc(iv2) });
+  }
+  let ip2 = iv2;
+  if (dst.mod === 'a') {
+    ip2 = iv2 / (1 + iv2);
+    steps.push({ t: 'Pasar de vencida a anticipada', f: 'i_a = i_v / (1 + i_v) = ' + fr(iv2) + ' / (1 + ' + fr(iv2) + ') = ' + pc(ip2) });
+  }
+  let res = ip2;
+  if (dst.tipo === 'nom') {
+    res = ip2 * m2;
+    steps.push({ t: 'Pasar de periódica a nominal: se multiplica por m = ' + m2, f: 'j = i × m = ' + pc(ip2) + ' × ' + m2 + ' = ' + pc(res) });
+  }
+  steps[steps.length - 1].final = true;
+  return { a, iv2, ip2, res, steps };
+}
+function eqRows(ea) {
+  return PER.map(p => {
+    const iv = Math.pow(1 + ea, 1 / p.m) - 1, ia = iv / (1 + iv);
+    return { p, efv: iv, efa: ia, nov: iv * p.m, noa: ia * p.m };
+  });
+}
+function fmtMoney(n) {
+  const [a, b] = n.toFixed(2).split('.');
+  return '$' + a.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + b;
+}
+/*ENDLOGIC*/
+
+const $ = id => document.getElementById(id);
+
+function rateForm(id, withValue, defaults) {
+  const per = PER.map(p => '<option value="' + p.m + '">' + p.n[0].toUpperCase() + p.n.slice(1) + (p.m === 365 ? ' (365)' : ' (' + p.m + ')') + '</option>').join('');
+  const val = withValue
+    ? '<div class="field"><label class="lab" for="' + id + '-val">Tasa</label><div class="valrow"><input class="num" type="text" inputmode="decimal" id="' + id + '-val" autocomplete="off" value="' + (defaults.val != null ? defaults.val : '') + '"><span class="suf">%</span></div></div>'
+    : '';
+  return '<div class="rate" data-id="' + id + '" style="display:grid;gap:16px">' + val +
+    '<div class="field"><span class="lab">Tipo de tasa</span><div class="seg">' +
+    '<label><input type="radio" name="' + id + '-tipo" value="nom"' + (defaults.tipo === 'nom' ? ' checked' : '') + '><span>Nominal</span></label>' +
+    '<label><input type="radio" name="' + id + '-tipo" value="efe"' + (defaults.tipo === 'efe' ? ' checked' : '') + '><span>Efectiva</span></label></div></div>' +
+    '<div class="field"><label class="lab" for="' + id + '-per" id="' + id + '-perlab">Periodo</label><select id="' + id + '-per">' + per + '</select></div>' +
+    '<div class="field"><span class="lab">Modalidad</span><div class="seg">' +
+    '<label><input type="radio" name="' + id + '-mod" value="v"' + (defaults.mod === 'v' ? ' checked' : '') + '><span>Vencida</span></label>' +
+    '<label><input type="radio" name="' + id + '-mod" value="a"' + (defaults.mod === 'a' ? ' checked' : '') + '><span>Anticipada</span></label></div></div></div>';
+}
+function getRate(id) {
+  const valEl = $(id + '-val');
+  return {
+    val: valEl ? parseNum(valEl.value) : NaN,
+    tipo: document.querySelector('input[name="' + id + '-tipo"]:checked').value,
+    per: Number($(id + '-per').value),
+    mod: document.querySelector('input[name="' + id + '-mod"]:checked').value
+  };
+}
+function setRate(id, r) {
+  if (r.val != null && $(id + '-val')) $(id + '-val').value = r.val;
+  document.querySelector('input[name="' + id + '-tipo"][value="' + r.tipo + '"]').checked = true;
+  document.querySelector('input[name="' + id + '-mod"][value="' + r.mod + '"]').checked = true;
+  $(id + '-per').value = r.per;
+}
+function syncLabels(id) {
+  const r = getRate(id);
+  $(id + '-perlab').textContent = r.tipo === 'nom' ? 'Periodo de capitalización' : 'Periodo de la tasa';
+}
+
+$('src-form').innerHTML = rateForm('s', true, { tipo: 'nom', mod: 'v', val: '24' });
+$('dst-form').innerHTML = rateForm('d', false, { tipo: 'efe', mod: 'v' });
+setRate('s', { tipo: 'nom', per: 12, mod: 'v', val: '24' });
+setRate('d', { tipo: 'efe', per: 1, mod: 'v' });
+
+const EXAMPLES = [
+  { n: '24 % NMV → E.A.', s: { tipo: 'nom', per: 12, mod: 'v', val: '24' }, d: { tipo: 'efe', per: 1, mod: 'v' } },
+  { n: '30 % E.A. → NMV', s: { tipo: 'efe', per: 1, mod: 'v', val: '30' }, d: { tipo: 'nom', per: 12, mod: 'v' } },
+  { n: '30 % E.A. → E.T.', s: { tipo: 'efe', per: 1, mod: 'v', val: '30' }, d: { tipo: 'efe', per: 4, mod: 'v' } },
+  { n: '24 % NMV → NTV', s: { tipo: 'nom', per: 12, mod: 'v', val: '24' }, d: { tipo: 'nom', per: 4, mod: 'v' } },
+  { n: '24 % NMA → E.A.', s: { tipo: 'nom', per: 12, mod: 'a', val: '24' }, d: { tipo: 'efe', per: 1, mod: 'v' } }
+];
+$('examples').innerHTML = '<span class="lead">Ejemplos de clase</span>' + EXAMPLES.map((e, i) => '<button type="button" class="chip" data-i="' + i + '">' + e.n + '</button>').join('');
+$('examples').addEventListener('click', ev => {
+  const b = ev.target.closest('.chip'); if (!b) return;
+  const e = EXAMPLES[b.dataset.i];
+  setRate('s', e.s); setRate('d', e.d); renderConv();
+});
+
+let lastResultText = '';
+function renderConv() {
+  syncLabels('s'); syncLabels('d');
+  const src = getRate('s'), dst = getRate('d');
+  $('src-tag').textContent = label(src);
+  $('dst-tag').textContent = label(dst);
+  const out = $('result'), stepsEl = $('steps'), tbl = $('eqtable'), ver = $('verify');
+  const r = convert(src, dst);
+  if (r.error) {
+    out.className = 'out bad'; out.textContent = r.error; $('result-desc').textContent = '';
+    stepsEl.innerHTML = ''; tbl.innerHTML = ''; ver.innerHTML = ''; lastResultText = '';
+    return;
+  }
+  out.className = 'out';
+  const txt = dec(r.res * 100, 4) + ' %';
+  out.innerHTML = txt + ' <small>' + label(dst) + '</small>';
+  $('result-desc').textContent = nameOf(dst) + '. Equivale a ' + dec(src.val, 4).replace(/,?0+$/, '') + ' % ' + label(src) + '.';
+  lastResultText = txt + ' ' + label(dst);
+  stepsEl.innerHTML = r.steps.map(s => '<li' + (s.final ? ' class="final"' : '') + '><span class="t">' + s.t + '</span><code>' + s.f + '</code></li>').join('');
+
+  // tabla de equivalentes
+  const rows = eqRows(r.a.ea);
+  tbl.innerHTML = '<thead><tr><th>Periodo (m)</th><th>Efectiva vencida</th><th>Efectiva anticipada</th><th>Nominal vencida</th><th>Nominal anticipada</th></tr></thead><tbody>' +
+    rows.map(x => {
+      const hit = c => (x.p.m === dst.per && ((c === 'efv' && dst.tipo === 'efe' && dst.mod === 'v') || (c === 'efa' && dst.tipo === 'efe' && dst.mod === 'a') || (c === 'nov' && dst.tipo === 'nom' && dst.mod === 'v') || (c === 'noa' && dst.tipo === 'nom' && dst.mod === 'a'))) ? ' class="hit"' : '';
+      return '<tr><td>' + x.p.n[0].toUpperCase() + x.p.n.slice(1) + ' (' + x.p.m + ')</td>' +
+        ['efv', 'efa', 'nov', 'noa'].map(c => '<td' + hit(c) + '>' + dec(x[c] * 100, 4) + ' %</td>').join('') + '</tr>';
+    }).join('') + '</tbody>';
+
+  // comprobación
+  const cap = parseNum($('cap').value.replace(/\./g, ''));
+  if (!isFinite(cap) || cap <= 0) { ver.innerHTML = '<p class="desc">Escribe un capital mayor que cero.</p>'; return; }
+  const vf1 = cap * Math.pow(1 + r.a.iv, src.per);
+  const vf2 = cap * Math.pow(1 + r.iv2, dst.per);
+  const same = Math.abs(vf1 - vf2) < 0.005;
+  ver.innerHTML =
+    '<div class="row"><span>Valor futuro con ' + dec(src.val, 4).replace(/,?0+$/, '') + ' % ' + label(src) + '</span><span class="v">' + fmtMoney(vf1) + '</span></div>' +
+    '<div class="row"><span>Valor futuro con ' + txt + ' ' + label(dst) + '</span><span class="v">' + fmtMoney(vf2) + '</span></div>' +
+    '<div class="row"><span>Valor futuro con la E.A. de ' + dec(r.a.ea * 100, 4) + ' %</span><span class="v">' + fmtMoney(cap * (1 + r.a.ea)) + '</span></div>' +
+    '<div class="row"><span>Resultado</span><span class="ok">' + (same ? 'Las tasas son equivalentes: mismo valor futuro' : 'Diferencia por redondeo') + '</span></div>';
+}
+$('tab-conv').addEventListener('input', renderConv);
+$('tab-conv').addEventListener('change', renderConv);
+$('copy').addEventListener('click', () => {
+  const b = $('copy');
+  const done = ok => { b.textContent = ok ? 'Copiado' : 'Selecciona y copia el valor'; setTimeout(() => b.textContent = 'Copiar resultado', 1600); };
+  try { navigator.clipboard.writeText(lastResultText).then(() => done(true), () => done(false)); } catch (e) { done(false); }
+});
+
+// comparador
+const CMP = [
+  { tipo: 'nom', per: 12, mod: 'v', val: '24' },
+  { tipo: 'nom', per: 4, mod: 'v', val: '25,5' },
+  { tipo: 'efe', per: 1, mod: 'v', val: '' }
+];
+$('cmp-forms').innerHTML = CMP.map((d, i) =>
+  '<div class="cmprow" data-row="' + i + '"><div class="field" style="grid-column:1/-1"><span class="lab">Tasa ' + (i + 1) + (i === 2 ? ' (opcional)' : '') + '</span></div>' +
+  '<div class="field"><label class="lab" for="c' + i + '-val">Valor</label><div class="valrow"><input class="num" type="text" inputmode="decimal" id="c' + i + '-val" value="' + d.val + '" autocomplete="off"><span class="suf">%</span></div></div>' +
+  '<div class="field"><span class="lab">Tipo</span><div class="seg"><label><input type="radio" name="c' + i + '-tipo" value="nom"><span>Nominal</span></label><label><input type="radio" name="c' + i + '-tipo" value="efe"><span>Efectiva</span></label></div></div>' +
+  '<div class="field"><label class="lab" for="c' + i + '-per">Periodo</label><select id="c' + i + '-per">' + PER.map(p => '<option value="' + p.m + '">' + p.n[0].toUpperCase() + p.n.slice(1) + '</option>').join('') + '</select></div>' +
+  '<div class="field"><span class="lab">Modalidad</span><div class="seg"><label><input type="radio" name="c' + i + '-mod" value="v"><span>Venc.</span></label><label><input type="radio" name="c' + i + '-mod" value="a"><span>Antic.</span></label></div></div>' +
+  '</div>').join('');
+CMP.forEach((d, i) => setRate('c' + i, { tipo: d.tipo, per: d.per, mod: d.mod }));
+
+function renderCmp() {
+  const goal = document.querySelector('input[name="goal"]:checked').value;
+  const items = [];
+  let problem = '';
+  CMP.forEach((d, i) => {
+    const r = getRate('c' + i);
+    if (!isFinite(r.val)) { if ($('c' + i + '-val').value.trim() !== '') problem = 'Revisa el valor de la tasa ' + (i + 1) + '.'; return; }
+    const a = r.val < 0 ? { error: 1 } : toEA(r);
+    if (a.error) { problem = 'La tasa ' + (i + 1) + ' no es válida.'; return; }
+    items.push({ i, r, ea: a.ea });
+  });
+  const bars = $('cmp-bars'), v = $('cmp-verdict');
+  if (items.length < 2) {
+    bars.innerHTML = '<p class="desc" style="margin:0">' + (problem || 'Completa al menos dos tasas para compararlas.') + '</p>'; v.hidden = true; return;
+  }
+  const best = items.reduce((b, x) => (goal === 'debt' ? x.ea < b.ea : x.ea > b.ea) ? x : b, items[0]);
+  const maxEa = Math.max(...items.map(x => x.ea)) || 1;
+  bars.innerHTML = items.map(x => '<div class="bar' + (x === best ? ' best' : '') + '"><div class="head"><span>Tasa ' + (x.i + 1) + ': ' + dec(x.r.val, 4).replace(/,?0+$/, '') + ' % ' + label(x.r) + '</span><span>' + dec(x.ea * 100, 4) + ' % E.A.</span></div><div class="track"><div class="fill" style="width:' + (x.ea / maxEa * 100).toFixed(1) + '%"></div></div></div>').join('');
+  const others = items.filter(x => x !== best);
+  const closest = others.reduce((b, x) => Math.abs(x.ea - best.ea) < Math.abs(b.ea - best.ea) ? x : b, others[0]);
+  const gap = Math.abs(closest.ea - best.ea) * 100;
+  const tie = gap < 0.00005;
+  v.hidden = false;
+  v.textContent = tie
+    ? 'Las tasas son equivalentes: todas rinden la misma E.A.'
+    : (goal === 'debt' ? 'Conviene la tasa ' + (best.i + 1) + ' (' + label(best.r) + '): cuesta ' : 'Conviene la tasa ' + (best.i + 1) + ' (' + label(best.r) + '): rinde ') +
+      dec(gap, 4) + ' puntos de E.A. ' + (goal === 'debt' ? 'menos' : 'más') + ' que la tasa ' + (closest.i + 1) + '.';
+}
+$('tab-cmp').addEventListener('input', renderCmp);
+$('tab-cmp').addEventListener('change', renderCmp);
+
+// pestañas
+const TABS = ['conv', 'cmp', 'ref'];
+function showTab(k) {
+  TABS.forEach(t => {
+    $('tb-' + t).setAttribute('aria-selected', String(t === k));
+    $('tab-' + t).hidden = t !== k;
+  });
+}
+TABS.forEach(t => $('tb-' + t).addEventListener('click', () => showTab(t)));
+$('tb-conv').parentElement.addEventListener('keydown', e => {
+  const i = TABS.findIndex(t => $('tb-' + t).getAttribute('aria-selected') === 'true');
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    const n = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+    showTab(n); $('tb-' + n).focus();
+  }
+});
+
+renderConv();
+renderCmp();
+</script>
+</body>
+</html>
